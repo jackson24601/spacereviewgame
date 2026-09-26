@@ -1,11 +1,17 @@
 import React, { useState, useCallback } from 'react'
 
 function TeacherUpload() {
+  const [inputMode, setInputMode] = useState('manual')
   const [file, setFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [uploadStatus, setUploadStatus] = useState(null)
   const [previewData, setPreviewData] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
+  
+  const [manualTerms, setManualTerms] = useState([])
+  const [currentTerm, setCurrentTerm] = useState('')
+  const [currentDefinition, setCurrentDefinition] = useState('')
+  const [editingIndex, setEditingIndex] = useState(null)
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault()
@@ -75,18 +81,175 @@ function TeacherUpload() {
     setPreviewData(null)
   }
 
+  const handleAddTerm = () => {
+    if (!currentTerm.trim() || !currentDefinition.trim()) {
+      setUploadStatus({ type: 'error', message: 'Please enter both a term and definition' })
+      return
+    }
+
+    if (editingIndex !== null) {
+      const updated = [...manualTerms]
+      updated[editingIndex] = { term: currentTerm.trim(), definition: currentDefinition.trim() }
+      setManualTerms(updated)
+      setEditingIndex(null)
+    } else {
+      setManualTerms([...manualTerms, { term: currentTerm.trim(), definition: currentDefinition.trim() }])
+    }
+    
+    setCurrentTerm('')
+    setCurrentDefinition('')
+    setUploadStatus({ type: 'success', message: 'Term added successfully!' })
+    setTimeout(() => setUploadStatus(null), 2000)
+  }
+
+  const handleEditTerm = (index) => {
+    setCurrentTerm(manualTerms[index].term)
+    setCurrentDefinition(manualTerms[index].definition)
+    setEditingIndex(index)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleDeleteTerm = (index) => {
+    setManualTerms(manualTerms.filter((_, i) => i !== index))
+    setUploadStatus({ type: 'success', message: 'Term deleted' })
+    setTimeout(() => setUploadStatus(null), 2000)
+  }
+
+  const handleCancelEdit = () => {
+    setCurrentTerm('')
+    setCurrentDefinition('')
+    setEditingIndex(null)
+  }
+
+  const handleSaveManualTerms = () => {
+    if (manualTerms.length === 0) {
+      setUploadStatus({ type: 'error', message: 'Please add at least one term' })
+      return
+    }
+    setUploadStatus({ type: 'success', message: `Saved ${manualTerms.length} terms successfully!` })
+    setPreviewData(manualTerms.slice(0, 5))
+  }
+
   return (
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-gray-900 mb-3">
-          Upload Your Review Terms
+          Create Your Review Terms
         </h2>
         <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-          Upload a CSV file containing terms and definitions. Each row should have a term in the first column and its definition in the second column.
+          Add terms and definitions manually or upload a CSV file to get started.
         </p>
       </div>
 
       <div className="max-w-3xl mx-auto">
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex rounded-lg border-2 border-gray-200 bg-gray-100 p-1">
+            <button
+              onClick={() => setInputMode('manual')}
+              className={`px-6 py-2 rounded-md font-semibold transition-all ${
+                inputMode === 'manual'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              Manual Entry
+            </button>
+            <button
+              onClick={() => setInputMode('csv')}
+              className={`px-6 py-2 rounded-md font-semibold transition-all ${
+                inputMode === 'csv'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                  : 'text-gray-700 hover:text-gray-900'
+              }`}
+            >
+              Upload CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-3xl mx-auto">{inputMode === 'manual' ? (
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+              <h3 className="text-xl font-bold text-white">
+                {editingIndex !== null ? 'Edit Term' : 'Add New Term'}
+              </h3>
+            </div>
+            <div className="p-8">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Term
+                  </label>
+                  <input
+                    type="text"
+                    value={currentTerm}
+                    onChange={(e) => setCurrentTerm(e.target.value)}
+                    placeholder="Enter the term (e.g., Photosynthesis)"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Definition
+                  </label>
+                  <textarea
+                    value={currentDefinition}
+                    onChange={(e) => setCurrentDefinition(e.target.value)}
+                    placeholder="Enter the definition"
+                    rows="4"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all resize-none"
+                  />
+                </div>
+
+                <div className="flex space-x-4">
+                  <button
+                    onClick={handleAddTerm}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                  >
+                    {editingIndex !== null ? 'Update Term' : 'Add Term'}
+                  </button>
+                  {editingIndex !== null && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {uploadStatus && (
+                <div
+                  className={`mt-6 p-4 rounded-lg flex items-start space-x-3 ${
+                    uploadStatus.type === 'success'
+                      ? 'bg-green-50 border border-green-200'
+                      : 'bg-red-50 border border-red-200'
+                  }`}
+                >
+                  {uploadStatus.type === 'success' ? (
+                    <svg className="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  <p
+                    className={`font-medium ${
+                      uploadStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
+                    }`}
+                  >
+                    {uploadStatus.message}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
           <div className="p-8">
             <div
@@ -219,8 +382,66 @@ function TeacherUpload() {
             )}
           </div>
         </div>
+        )}
 
-        {previewData && previewData.length > 0 && (
+        {inputMode === 'manual' && manualTerms.length > 0 && (
+          <div className="mt-8 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-white">
+                Your Terms ({manualTerms.length})
+              </h3>
+              <button
+                onClick={handleSaveManualTerms}
+                className="bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Save All Terms
+              </button>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {manualTerms.map((item, index) => (
+                  <div
+                    key={index}
+                    className="p-4 bg-gray-50 rounded-lg border border-gray-200 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900 mb-2">
+                          {index + 1}. {item.term}
+                        </div>
+                        <div className="text-gray-600 pl-4 border-l-2 border-blue-300">
+                          {item.definition}
+                        </div>
+                      </div>
+                      <div className="flex space-x-2 ml-4">
+                        <button
+                          onClick={() => handleEditTerm(index)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTerm(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {previewData && previewData.length > 0 && inputMode === 'csv' && (
           <div className="mt-8 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
               <h3 className="text-xl font-bold text-white">Preview - First 5 Terms</h3>
@@ -245,22 +466,24 @@ function TeacherUpload() {
           </div>
         )}
 
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <div className="flex items-start space-x-3">
-            <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="text-sm text-blue-800">
-              <p className="font-semibold mb-2">CSV Format Requirements:</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-700">
-                <li>First column: Term</li>
-                <li>Second column: Definition</li>
-                <li>Include a header row (e.g., "Term,Definition")</li>
-                <li>Each term should have exactly one definition</li>
-              </ul>
+        {inputMode === 'csv' && (
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <div className="flex items-start space-x-3">
+              <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm text-blue-800">
+                <p className="font-semibold mb-2">CSV Format Requirements:</p>
+                <ul className="list-disc list-inside space-y-1 text-blue-700">
+                  <li>First column: Term</li>
+                  <li>Second column: Definition</li>
+                  <li>Include a header row (e.g., "Term,Definition")</li>
+                  <li>Each term should have exactly one definition</li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
